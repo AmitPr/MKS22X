@@ -1,0 +1,337 @@
+class World{
+  
+  
+  public ArrayList<Enemy> enemies = new ArrayList<Enemy>();
+  public ArrayList<Bullet> bullets = new ArrayList<Bullet>();
+  public ArrayList<WaveAction> currentWave= new ArrayList<WaveAction>();
+  
+  public Obstacle[][] map;
+  public boolean fast = false;
+  public boolean pause = true;
+  public boolean isDead = false;
+  public World(){
+    pathFindingMap = new int[BTD.WORLD_HEIGHT][BTD.WORLD_WIDTH];
+    for(int i = 0; i < BTD.WORLD_HEIGHT; i ++){
+      for(int j = 0; i < BTD.WORLD_HEIGHT; i ++){
+        pathFindingMap[i][j]=-1;
+      }
+    }
+    map = new Obstacle[BTD.WORLD_HEIGHT][BTD.WORLD_WIDTH]; 
+    map[BTD.WORLD_HEIGHT-2][BTD.WORLD_WIDTH-2]=
+      map[BTD.WORLD_HEIGHT-1][BTD.WORLD_WIDTH-1]=
+      map[BTD.WORLD_HEIGHT-2][BTD.WORLD_WIDTH-1]=
+      map[BTD.WORLD_HEIGHT-1][BTD.WORLD_WIDTH-2]=
+      player=new Player(BTD.WORLD_WIDTH-2,BTD.WORLD_HEIGHT-2,100);
+      
+    map[0][0]=map[0][1]=map[1][0]=map[1][1]=new EnemyBase(0,0,100);
+    updatePathFindingMap();
+  }
+  public ArrayList<WaveAction> getWave(int waveNum){
+    ArrayList<WaveAction> toReturn = new ArrayList<WaveAction>();
+    Effect regen = new Effect(1,Integer.MAX_VALUE,"regen",REGEN_TICKCOUNT,REGEN_TICKCOUNT,-1);
+    switch(waveNum){
+      case 1:
+        toReturn.add(new WaveAction(0,20,8));
+      break;
+      case 2:
+        toReturn.add(new WaveAction(0,35,7));
+      break;
+      case 3:
+        toReturn.add(new WaveAction(0,25,8));
+        toReturn.add(new WaveAction(1,5,15));
+      break;
+      case 4:
+        toReturn.add(new WaveAction(0,35,7));
+        toReturn.add(new WaveAction(1,18,10));
+      break;
+      case 5:
+        toReturn.add(new WaveAction(0,5,3));
+        toReturn.add(new WaveAction(1,27,7));
+      break;
+      case 6:
+        toReturn.add(new WaveAction(0,15,4));
+        toReturn.add(new WaveAction(1,15,8));
+        toReturn.add(new WaveAction(2,4,20));
+      break;
+      case 7:
+        toReturn.add(new WaveAction(0,20,4));
+        toReturn.add(new WaveAction(1,20,8));
+        toReturn.add(new WaveAction(2,5,15));
+      break;
+      case 8:
+        toReturn.add(new WaveAction(0,10,4));
+        toReturn.add(new WaveAction(1,20,7));
+        toReturn.add(new WaveAction(2,14,10));
+      break;
+      case 9:
+        toReturn.add(new WaveAction(2,30,8));
+      break;
+      case 10:
+        toReturn.add(new WaveAction(1,102,1));
+      break;
+      case 11:
+        toReturn.add(new WaveAction(0,6,3));
+        toReturn.add(new WaveAction(1,12,5));
+        toReturn.add(new WaveAction(2,12,5));
+        toReturn.add(new WaveAction(3,3,7));
+      break;
+      case 12:
+        toReturn.add(new WaveAction(1,15,4));
+        toReturn.add(new WaveAction(2,10,5));
+        toReturn.add(new WaveAction(3,5,16));
+      break;
+      case 13:
+        toReturn.add(new WaveAction(1,50,2));
+        toReturn.add(new WaveAction(2,23,4));
+      break;
+      case 14:
+        toReturn.add(new WaveAction(0,49,2));
+        toReturn.add(new WaveAction(1,15,5));
+        toReturn.add(new WaveAction(2,10,5));
+        toReturn.add(new WaveAction(3,9,8));
+      break;  
+      case 15:
+        toReturn.add(new WaveAction(0,20,4));
+        toReturn.add(new WaveAction(1,15,6));
+        toReturn.add(new WaveAction(2,12,6));
+        toReturn.add(new WaveAction(3,10,8));
+        toReturn.add(new WaveAction(4,5,10));
+      break;  
+      case 16:
+        toReturn.add(new WaveAction(2,40,5));
+        toReturn.add(new WaveAction(3,8,15)); 
+      break;  
+      case 17:
+        toReturn.add(new WaveAction(3,20,10,regen));  
+      break;  
+      case 18:
+        toReturn.add(new WaveAction(2,30,10,regen)); 
+        toReturn.add(new WaveAction(3,15,10,regen)); 
+      break;  
+      case 19:
+        toReturn.add(new WaveAction(2,30,10,regen)); 
+        toReturn.add(new WaveAction(3,15,10,regen)); 
+      break;  
+      case 20:
+        toReturn.add(new WaveAction(0,6,3,regen));
+        toReturn.add(new WaveAction(1,12,5,regen));
+        toReturn.add(new WaveAction(2,12,5,regen));
+        toReturn.add(new WaveAction(3,3,7,regen));
+      break;  
+      case 21:
+        toReturn.add(new WaveAction(5,1,3));
+        
+      default:
+      break;
+    }
+    /*toReturn.add(new WaveAction(0,waveNum,20+60/waveNum));
+    if(waveNum%5==0){
+      toReturn.add(new WaveAction(4,1,20+60/waveNum));
+    }*/
+    return toReturn;
+  }
+  public boolean updatePathFindingMap(){
+    
+    int[][] newPathFindingMap = new int[BTD.WORLD_WIDTH][BTD.WORLD_HEIGHT];
+    for(int i = 0; i < BTD.WORLD_WIDTH; i++){
+      for(int j = 0; j < BTD.WORLD_HEIGHT; j++){
+        newPathFindingMap[i][j]=-1;
+      }
+    }
+    
+    ArrayList<int[]> lastVisitedCoords = new ArrayList<int[]>();
+    int[][] playerCoords = {{BTD.WORLD_WIDTH-1,BTD.WORLD_HEIGHT-1},{BTD.WORLD_WIDTH-2,BTD.WORLD_HEIGHT-1},{BTD.WORLD_WIDTH-1,BTD.WORLD_HEIGHT-2},{BTD.WORLD_WIDTH-2,BTD.WORLD_HEIGHT-2}}; 
+    lastVisitedCoords.add(playerCoords[0]);
+    lastVisitedCoords.add(playerCoords[1]);
+    lastVisitedCoords.add(playerCoords[2]);
+    lastVisitedCoords.add(playerCoords[3]);
+    newPathFindingMap[BTD.WORLD_WIDTH-2][BTD.WORLD_HEIGHT-2]=
+    newPathFindingMap[BTD.WORLD_WIDTH-1][BTD.WORLD_HEIGHT-1]=
+    newPathFindingMap[BTD.WORLD_WIDTH-2][BTD.WORLD_HEIGHT-1]=
+    newPathFindingMap[BTD.WORLD_WIDTH-1][BTD.WORLD_HEIGHT-2]=0;
+    
+    //println(pathFindingMap[BTD.WORLD_WIDTH-1][BTD.WORLD_HEIGHT-1]);
+    while(lastVisitedCoords.size()>0){
+      ArrayList<int[]> justVisitedCoords = new ArrayList<int[]>();
+      for(int[] coords : lastVisitedCoords){
+        if(isValidCoord(coords[1],coords[0]+1) && newPathFindingMap[coords[0]+1][coords[1]] == -1 && (((map[coords[0]+1][coords[1]]==null))||(coords[0]+1<2 && coords[1]<2))){
+          newPathFindingMap[coords[0]+1][coords[1]] = newPathFindingMap[coords[0]][coords[1]]+1;
+          int[] thisCoord = {coords[0]+1,coords[1]};
+          justVisitedCoords.add(thisCoord);
+          
+        }
+         
+        if(isValidCoord(coords[1],coords[0]-1) && newPathFindingMap[coords[0]-1][coords[1]] == -1 && (((map[coords[0]-1][coords[1]]==null))||(coords[0]-1<2 && coords[1]<2))){
+          newPathFindingMap[coords[0]-1][coords[1]] = newPathFindingMap[coords[0]][coords[1]]+1;
+          int[] thisCoord = {coords[0]-1,coords[1]};
+          justVisitedCoords.add(thisCoord);
+          
+        }
+        
+        if(isValidCoord(coords[1]+1,coords[0]) && newPathFindingMap[coords[0]][coords[1]+1] == -1 && (((map[coords[0]][coords[1]+1]==null))||(coords[0]<2 && coords[1]+1<2))){
+          newPathFindingMap[coords[0]][coords[1]+1] = newPathFindingMap[coords[0]][coords[1]]+1;
+          int[] thisCoord = {coords[0],coords[1]+1};
+          justVisitedCoords.add(thisCoord);
+          
+        }
+        
+        if(isValidCoord(coords[1]-1,coords[0]) && newPathFindingMap[coords[0]][coords[1]-1] == -1 && (((map[coords[0]][coords[1]-1]==null))||(coords[0]<2 && coords[1]-1<2))){
+          newPathFindingMap[coords[0]][coords[1]-1] = newPathFindingMap[coords[0]][coords[1]]+1;
+          int[] thisCoord = {coords[0],coords[1]-1};
+          justVisitedCoords.add(thisCoord);
+          
+        }
+      }
+      
+      lastVisitedCoords = justVisitedCoords;
+    }
+    //println(newPathFindingMap[BTD.WORLD_WIDTH-1][BTD.WORLD_HEIGHT-1]);
+    if(newPathFindingMap[0][1] == -1 && newPathFindingMap[1][0] == -1 && newPathFindingMap[1][1] == -1){
+      return false;
+    }
+    else{
+      
+      newPathFindingMap[0][0]=min(newPathFindingMap[0][1],newPathFindingMap[0][1])+1;
+      pathFindingMap = newPathFindingMap;
+      return true;
+    }
+  }
+  
+  public Obstacle[][] getMap(){
+    return map;
+  }
+  
+  public Obstacle objectAt(int x, int y){
+   return map[y][x]; 
+  }
+  
+  public Obstacle objectAt(float x, float y){
+   int mx = round(x);
+   int my = round(y);
+   return map[my][mx];
+  }
+  public int tickCount=0;
+  private boolean firstTickDone = false;
+  public void tick(){
+    tickCount++;
+    background(46,125,50);
+    if(tickCount>300){
+      if(currentWave.size()>0){
+        currentWave.get(0).tick();
+        if(currentWave.get(0).isDone()){
+         currentWave.remove(0); 
+        }
+      }else{
+        if(enemies.size()==0&&!firstTickDone){
+          pause=true;
+          firstTickDone=true;
+          uiButtons.get(uiButtons.size()-1).icon=towerImages[4];
+        }else if(enemies.size()==0&&firstTickDone&&!pause){
+          currentWave=getWave(waveNum++);
+          firstTickDone=false;
+        }
+      }
+    }
+    for(int y = 0; y < map.length; y++){
+        for(int x = 0; x < map[y].length;x++){
+           if(map[y][x]!=null){
+              map[y][x].display(); 
+           }
+        }
+      }
+    for(int i = 0; i < bullets.size(); i++){
+      Bullet b = bullets.get(i);
+      b.display();
+      if(i >= bullets.size() || b!=bullets.get(i)){
+        i--;
+      }
+    }
+    for(int i = 0; i < enemies.size(); i++){
+      Enemy e=enemies.get(i);
+      e.display();
+      if(i >= enemies.size() || e!=enemies.get(i)){
+        i--;
+      }
+    }
+    
+    
+    //println("Tower count: "+Integer.toString(towerCounter)); 
+    for(int i = 0; i < enemies.size(); i++){
+      Enemy e=enemies.get(i);
+      e.display();
+      if(e.isDead()){enemies.remove(e);}
+      if(i<enemies.size() && e!=enemies.get(i)){
+        i--;
+      }
+    }
+    for(int y = 0; y < WORLD_HEIGHT; y++){
+      for(int x = 0; x < WORLD_HEIGHT; x++){
+        fill(255,255,255);
+        //text(pathFindingMap[y][x],WIDTH/BTD.WORLD_WIDTH * x+10,HEIGHT/BTD.WORLD_HEIGHT*y+10);
+      }
+    }
+  }
+   void onMouseClick(){
+    int y = screenToWorldY(mouseY);
+    int x = screenToWorldX(mouseX);
+    
+    if(map[y][x]==null){
+      switch(currentSelection){
+        case "Dart Tower":
+          map[y][x]=new DartTower(x,y,100);
+        break;
+        case "Wall":
+          map[y][x]=new WallTower(x,y,100); 
+        break;
+        case "Freeze Tower":
+          map[y][x]=new FreezeTower(x,y,100);
+        break;
+        case "Tack Tower":
+          map[y][x]=new TackTower(x,y,100);
+        break;
+        default:
+        break;
+      }
+      if(map[y][x]!=null){
+      if(map[y][x].price>player.money){
+        map[y][x]=null;
+      }
+      else if(!updatePathFindingMap()){
+        map[y][x]=null;
+      }
+      else{
+        player.money-=map[y][x].price;
+        updatePathFindingMap();
+      }
+      }
+    }else{
+     player.money+=SELL_RATIO*map[y][x].price;
+     map[y][x]=null;
+     updatePathFindingMap();
+    }
+  }
+  public void die(){
+    fill(255,0,0);
+    textAlign(CENTER);
+    textSize(60);
+    text("Game over, you got to round "+str(waveNum-1),height/2,height/2);
+    textSize(40);
+    //text("hit R to play again",height/2,height/2+50);
+    isDead=true;
+    textSize(12);
+    textAlign(LEFT);
+  }
+  public  int screenToWorldX(int x){
+    return (int)(x/(float)WIDTH*(float)BTD.WORLD_WIDTH);
+  }
+  
+  public  int screenToWorldY(int y){
+    return (int)(y/(float)HEIGHT*(float)BTD.WORLD_HEIGHT);
+  }
+  public boolean isValidCoord(int x, int y){
+    if(0 <= x && x < BTD.WORLD_WIDTH && 0 <= y && y < BTD.WORLD_HEIGHT){
+      return true;
+    }
+    return false;
+  }
+}
